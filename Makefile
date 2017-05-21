@@ -53,9 +53,6 @@ C_FILES			+= QueueOverwrite.c
 C_FILES			+= TaskNotify.c
 C_FILES			+= TimerDemo.c
 
-# Main Object
-C_FILES			+= main.c
-
 # Include Paths
 INCLUDES        += -I$(SRCROOT)/Source/include
 INCLUDES        += -I$(SRCROOT)/Source/portable/GCC/POSIX/
@@ -64,6 +61,9 @@ INCLUDES        += -I$(SRCROOT)/Project
 
 # Generate OBJS names
 OBJS = $(patsubst %.c,%.o,$(C_FILES))
+
+# Fix to place .o files in ODIR
+_OBJS = $(patsubst %,$(ODIR)/%,$(OBJS))
 
 ######## C Flags ########
 
@@ -104,19 +104,21 @@ CFLAGS += -DMAX_NUMBER_OF_TASKS=300
 
 CFLAGS += $(INCLUDES) $(CWARNS) -O2
 
+TARGET = ./bin/
+EXEC_SRC = $(wildcard Project/*.c)
+EXEC = $(addprefix $(TARGET),$(patsubst Project/%.c,%,$(EXEC_SRC)))
+
 ######## Makefile targets ########
 
-# Rules
-.PHONY : all
-all: setup FreeRTOS-Sim
+.SECONDARY: $(_OBJS)
 
-.PHONY : setup
+# Rules
+.PHONY : all clean
+all: setup $(EXEC)
+
 setup:
 # Make obj directory
-	@mkdir -p $(ODIR)
-
-# Fix to place .o files in ODIR
-_OBJS = $(patsubst %,$(ODIR)/%,$(OBJS))
+	@mkdir -p $(ODIR) $(TARGET)
 
 $(ODIR)/%.o: %.c
 # If verbose, print gcc execution, else hide
@@ -128,21 +130,12 @@ else
 	@$(CC) $(CFLAGS) -c -o $@ $<
 endif
 
-FreeRTOS-Sim: $(_OBJS)
-	@echo ">> Linking $@..."
-ifeq ($(verbose),1)
+$(TARGET)%: %.c $(_OBJS)
+	@ echo '>> linking' $@
 	$(CC) $(CFLAGS) $^ $(LINKFLAGS) $(LIBS) -o $@
-else
-	@$(CC) $(CFLAGS) $^ $(LINKFLAGS) $(LIBS) -o $@
-endif
 
-	@echo "-------------------------"
-	@echo "BUILD COMPLETE: $@"
-	@echo "-------------------------"
-
-.PHONY : clean
 clean:
-	@-rm -rf $(ODIR) FreeRTOS-Sim
+	@-rm -rf $(ODIR) $(TARGET)
 	@echo "--------------"
 	@echo "CLEAN COMPLETE"
 	@echo "--------------"
